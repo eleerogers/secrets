@@ -5,7 +5,9 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const encrypt = require("mongoose-encryption");
+const bcrypt = require("bcrypt");
+// const encrypt = require("mongoose-encryption");
+// const md5 = require("md5");
  
 const app = express();
  
@@ -24,7 +26,7 @@ const userSchema = new mongoose.Schema({
 
 const secret = process.env.ENCRYPT_SECRET;
 
-userSchema.plugin(encrypt, { secret, encryptedFields: ['password'] });
+// userSchema.plugin(encrypt, { secret, encryptedFields: ['password'] });
 
 const User = new mongoose.model("User", userSchema);
 
@@ -43,9 +45,11 @@ app.post('/login', (req, res) => {
       throw err;
     } else {
       if (foundUser) {
-        if (password === foundUser.password) {
-          res.render('secrets');
-        }
+        bcrypt.compare(password, foundUser.password, (err, result) => {
+          if (result) {
+            res.render('secrets');
+          }
+        })
       } else {
 
       }
@@ -59,15 +63,19 @@ app.get('/register', (req, res) => {
 
 app.post('/register', (req, res) => {
   const { username, password } = req.body;
-  const newUser = new User({ username, password });
-  newUser.save((err, user) => {
-    if (err) {
-      throw err;
-    } else {
-      res.render('secrets');
-    }
+  const saltRounds = 10;
+  bcrypt.hash(password, saltRounds, (err, hash) => {
+    const newUser = new User({ username, password: hash });
+    newUser.save((err, user) => {
+      if (err) {
+        throw err;
+      } else {
+        res.render('secrets');
+      }
+    })
   })
 });
+
  
 app.listen(port, () => console.log(`Server started at port: ${port}`)
 );
